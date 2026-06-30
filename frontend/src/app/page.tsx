@@ -44,6 +44,14 @@ export default function Home() {
   }, [activeProject]);
 
   useEffect(() => {
+    if (!activeProject || !documents.some((document) => ["queued", "parsing"].includes(document.parse_status))) return;
+    const timer = window.setInterval(() => {
+      void refreshDocuments(activeProject.id);
+    }, 2500);
+    return () => window.clearInterval(timer);
+  }, [activeProject, documents]);
+
+  useEffect(() => {
     if (!run || ["completed", "failed"].includes(run.status)) return;
     const timer = window.setInterval(async () => {
       const nextRun = await api.getRun(run.id);
@@ -399,4 +407,3 @@ function riskClass(risk: ClaimResult["risk_level"]) {
     critical: "risk-critical"
   }[risk];
 }
-
