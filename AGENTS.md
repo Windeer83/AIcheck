@@ -42,6 +42,14 @@ cd frontend && npm run typecheck && npm run build
 
 默认仓库名：`ai-output-factcheck-system`。
 
+Windows 本机 GitHub CLI：
+
+- GitHub CLI 安装路径为 `C:\Program Files\GitHub CLI\gh.exe`。
+- 如果 PowerShell 报 `gh : 无法将“gh”项识别为 cmdlet`，先运行 `gh --version`；仍失败时运行 `& 'C:\Program Files\GitHub CLI\gh.exe' --version` 确认安装是否存在。
+- 已在用户级 PATH 中加入 `C:\Program Files\GitHub CLI`；新开的 PowerShell 应可直接使用 `gh`。
+- 为兼容已打开的 PowerShell，会话可通过 `C:\Users\16690\AppData\Local\Microsoft\WindowsApps\gh.cmd` 转发到正式的 `gh.exe`。
+- 首次发布前先运行 `gh auth login` 登录 GitHub。
+
 发布前检查：
 
 1. `git status -sb`
