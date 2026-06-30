@@ -37,7 +37,7 @@
 - 启动命令：
 
 ```bash
-sh -c "alembic upgrade head && celery -A app.worker.celery_app worker --loglevel=INFO & uvicorn app.main:app --host 0.0.0.0 --port 8000"
+sh /app/start-sealos-all-in-one.sh
 ```
 
 环境变量：复制 `deploy/sealos/.env.backend-allinone`，或参考 `env.backend-allinone.example`。
