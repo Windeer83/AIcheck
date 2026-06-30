@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 from uuid import UUID
 
 from sqlalchemy.orm import Session, selectinload
@@ -16,6 +17,8 @@ from app.services.storage import storage
 from app.services.verifier import aggregate_verdict
 from app.worker.celery_app import celery_app
 
+logger = logging.getLogger(__name__)
+
 
 @celery_app.task(name="parse_document")
 def parse_document_task(document_id: str) -> None:
@@ -27,6 +30,22 @@ def parse_document_task(document_id: str) -> None:
 def verify_input_text_task(input_text_id: str, run_id: str, options: dict) -> None:
     with SessionLocal() as db:
         verify_input_text(db, UUID(input_text_id), UUID(run_id), options)
+
+
+def requeue_incomplete_documents() -> int:
+    with SessionLocal() as db:
+        documents = db.query(Document).filter(Document.parse_status.in_(["queued", "parsing"])).all()
+        for document in documents:
+            document.parse_status = "queued"
+            document.parse_error = None
+        db.commit()
+
+        for document in documents:
+            parse_document_task.delay(str(document.id))
+
+        if documents:
+            logger.info("Requeued %s incomplete document parsing task(s)", len(documents))
+        return len(documents)
 
 
 def parse_document(db: Session, document_id: UUID) -> None:
@@ -193,4 +212,3 @@ def _update_run(db: Session, run: Run, status: str, progress: float, step: str, 
     if checked is not None:
         run.claims_checked = checked
     db.commit()
-
