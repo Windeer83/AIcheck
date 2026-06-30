@@ -34,10 +34,18 @@
 - 端口：`8000`
 - 公网访问：开启
 - 建议挂载持久化存储到：`/data`
-- 启动命令：
+- 启动命令：建议留空，使用镜像默认命令。
+
+如果 Sealos 强制要求填写启动命令，填：
 
 ```bash
-sh -c "alembic upgrade head && celery -A app.worker.celery_app worker --loglevel=INFO & uvicorn app.main:app --host 0.0.0.0 --port 8000"
+sh
+```
+
+Arguments 填：
+
+```bash
+/app/start-sealos-all-in-one.sh
 ```
 
 环境变量：复制 `deploy/sealos/.env.backend-allinone`，或参考 `env.backend-allinone.example`。
