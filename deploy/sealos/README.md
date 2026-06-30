@@ -82,13 +82,7 @@ Web 通过自己的服务端代理访问 Backend，不会把 `APP_ACCESS_TOKEN` 
 DATABASE_URL=postgresql+psycopg://USER:PASSWORD@HOST:PORT/DBNAME
 ```
 
-数据库需要启用 pgvector。迁移脚本会执行：
-
-```sql
-CREATE EXTENSION IF NOT EXISTS vector;
-```
-
-如果托管实例不允许创建 extension，请在数据库管理界面手动启用 pgvector。
+MVP 默认不要求 pgvector 扩展，embedding 会存入 PostgreSQL JSONB 字段，方便直接部署到 Sealos 托管 PostgreSQL。
 
 你当前这套 Sealos PostgreSQL 连接串需要给 SQLAlchemy 补上 driver 和数据库名：
 

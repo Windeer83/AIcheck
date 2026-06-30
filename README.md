@@ -6,7 +6,7 @@
 
 - FastAPI 后端 API：项目、文献上传、文本提交、异步核查、结果查询、报告导出。
 - Celery Worker：PDF 解析、chunk 切分、embedding、检索、claim-evidence 判定、聚合评分。
-- PostgreSQL + pgvector：保存项目、文献、chunks、claims、evidences、verification results。
+- PostgreSQL：保存项目、文献、chunks、claims、evidences、verification results；MVP 默认用 JSONB 存储 embedding，避免部署环境缺少 pgvector 扩展。
 - Redis：本地异步任务队列。
 - Next.js 工作台：项目、文献库、输入文本、运行状态、风险概览、证据卡片、Markdown 导出。
 - Sealos 兼容：服务拆分、S3-compatible Object Storage、健康检查、部署文档和环境变量模板。
@@ -24,7 +24,7 @@
 - 上传 PDF 到本地 `/data/uploads` 或 S3-compatible Object Storage。
 - 使用 PyMuPDF/pdfplumber 抽取文本和页码。
 - 将正文切分为可追溯 chunks。
-- 生成 384 维 embedding，写入 pgvector。
+- 生成 384 维 embedding，写入 PostgreSQL JSONB 字段。
 
 ### 阶段 2：声称抽取
 
