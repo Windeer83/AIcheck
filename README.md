@@ -60,9 +60,9 @@ cp .env.example .env
 ```bash
 LLM_PROVIDER=openai_compatible
 OPENAI_API_KEY=你的密钥
-OPENAI_BASE_URL=https://api.openai.com/v1
-OPENAI_MODEL=gpt-4.1-mini
-EMBEDDING_MODEL=text-embedding-3-small
+OPENAI_BASE_URL=https://api.siliconflow.cn/v1
+OPENAI_MODEL=deepseek-ai/DeepSeek-V4-Pro
+EMBEDDING_MODEL=BAAI/bge-m3
 ```
 
 3. 启动：
@@ -77,7 +77,7 @@ docker compose up --build
 - API：http://localhost:8000
 - API 文档：http://localhost:8000/docs
 
-默认访问 token 是 `.env` 中的 `APP_ACCESS_TOKEN`，前端通过 `NEXT_PUBLIC_APP_ACCESS_TOKEN` 传给 API。
+默认访问 token 是 `.env` 中的 `APP_ACCESS_TOKEN`，前端服务端代理会用同名变量访问 API。
 
 ## 常用命令
 
@@ -145,4 +145,3 @@ X-Access-Token: dev-token
 - `node_modules/`
 - `.next/`
 - Python 缓存与测试缓存
-

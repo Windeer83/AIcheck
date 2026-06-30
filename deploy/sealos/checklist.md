@@ -6,8 +6,8 @@
 - [ ] Sealos PostgreSQL 可连接。
 - [ ] pgvector extension 已启用。
 - [ ] Redis 内网地址可用。
-- [ ] Object Storage bucket 已创建。
-- [ ] API 和 Worker 使用同一个 `DATABASE_URL`、Redis、S3 配置。
+- [ ] 如果采用 API/Worker 分离部署，Object Storage bucket 已创建；如果采用 Backend all-in-one，可先跳过。
+- [ ] API 和 Worker 使用同一个 `DATABASE_URL`、Redis 配置；分离部署时还要使用同一组 S3 配置。
 - [ ] `APP_ACCESS_TOKEN` 是强随机值。
 - [ ] `BACKEND_CORS_ORIGINS` 只包含 Web 域名。
 
@@ -21,7 +21,7 @@
 - [ ] Worker 日志显示解析任务完成。
 - [ ] 能启动核查任务。
 - [ ] 能导出 Markdown 报告。
-- [ ] Object Storage 出现 `uploads/` 和 `reports/` 对象。
+- [ ] 分离部署时 Object Storage 出现 `uploads/` 和 `reports/` 对象；all-in-one 部署时检查 `/data/uploads`、`/data/reports`。
 
 ## 常见故障
 
@@ -35,13 +35,12 @@
 
 - 检查 Worker 是否运行。
 - 检查 Worker 的 Redis URL 是否与 API 一致。
-- 检查 Worker 是否能访问 Object Storage。
+- 分离部署时检查 Worker 是否能访问 Object Storage；all-in-one 部署时检查 `/data` 是否可写。
 
 ### 前端 401
 
-- 检查 Web 的 `NEXT_PUBLIC_APP_ACCESS_TOKEN` 是否等于 API 的 `APP_ACCESS_TOKEN`。
+- 检查 Web 的 `APP_ACCESS_TOKEN` 是否等于 API 的 `APP_ACCESS_TOKEN`。
 
 ### 浏览器跨域错误
 
 - 检查 API 的 `BACKEND_CORS_ORIGINS` 是否包含 Web 公网域名。
-

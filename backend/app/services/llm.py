@@ -187,24 +187,32 @@ class OpenAICompatibleProvider(MockLLMProvider):
             return super().embed(texts)
 
     def _chat_json(self, prompt: str) -> Any:
-        payload = {
+        base_payload = {
             "model": settings.openai_model,
             "temperature": 0,
             "messages": [
                 {"role": "system", "content": "You are a strict academic fact-checking component. Return JSON only."},
                 {"role": "user", "content": prompt},
             ],
-            "response_format": {"type": "json_object"},
         }
+        payloads = [
+            {**base_payload, "response_format": {"type": "json_object"}},
+            base_payload,
+        ]
         last_error: Exception | None = None
-        for _ in range(2):
-            try:
-                response = httpx.post(f"{self.base_url}/chat/completions", headers=self.headers, json=payload, timeout=90)
-                response.raise_for_status()
-                content = response.json()["choices"][0]["message"]["content"]
-                return _parse_json(content)
-            except Exception as exc:
-                last_error = exc
+        for payload in payloads:
+            for _ in range(2):
+                try:
+                    response = httpx.post(f"{self.base_url}/chat/completions", headers=self.headers, json=payload, timeout=90)
+                    response.raise_for_status()
+                    content = response.json()["choices"][0]["message"]["content"]
+                    return _parse_json(content)
+                except httpx.HTTPStatusError as exc:
+                    last_error = exc
+                    if "response_format" in payload and exc.response.status_code in {400, 422}:
+                        break
+                except Exception as exc:
+                    last_error = exc
         raise RuntimeError(f"LLM JSON parsing failed: {last_error}")
 
 
@@ -340,4 +348,3 @@ Evidence:
   "brief_explanation": "不超过 80 字"
 }
 """
-
