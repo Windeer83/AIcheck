@@ -4,7 +4,7 @@
 
 - [ ] GitHub Actions 已成功推送 API/Worker/Web 镜像。
 - [ ] Sealos PostgreSQL 可连接。
-- [ ] pgvector extension 已启用。
+- [ ] 数据库连接字符串包含数据库名，例如末尾 `/postgres`。
 - [ ] Redis 内网地址可用。
 - [ ] 如果采用 API/Worker 分离部署，Object Storage bucket 已创建；如果采用 Backend all-in-one，可先跳过。
 - [ ] API 和 Worker 使用同一个 `DATABASE_URL`、Redis 配置；分离部署时还要使用同一组 S3 配置。
@@ -29,7 +29,7 @@
 
 - 检查 `DATABASE_URL`。
 - 检查数据库安全组/内网地址。
-- 检查 pgvector 是否允许创建 extension。
+- 检查数据库名、用户名、密码和内网 host 是否正确。
 
 ### 上传成功但不解析
 
