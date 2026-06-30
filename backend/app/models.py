@@ -3,7 +3,6 @@ from __future__ import annotations
 import uuid
 from datetime import UTC, datetime
 
-from pgvector.sqlalchemy import Vector
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, relationship
@@ -64,7 +63,7 @@ class DocumentChunk(Base):
     chunk_text: Mapped[str] = mapped_column(Text, nullable=False)
     chunk_type: Mapped[str] = mapped_column(Text, default="body", nullable=False)
     token_count: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
-    embedding: Mapped[list[float] | None] = mapped_column(Vector(384))
+    embedding: Mapped[list[float] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     document: Mapped[Document] = relationship(back_populates="chunks")
@@ -187,5 +186,3 @@ class CitationBinding(Base):
 
     input_text: Mapped[InputText] = relationship()
     document: Mapped[Document | None] = relationship()
-
-
