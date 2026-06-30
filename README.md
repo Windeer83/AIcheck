@@ -1,0 +1,148 @@
+# AI 输出事实核查与可信度评估系统
+
+面向论文写作场景的本地单用户 MVP：上传 PDF 文献，粘贴 AI 生成段落，系统抽取事实声称、检索证据、判断支持关系，并导出 Markdown 核查报告。
+
+## 当前交付范围
+
+- FastAPI 后端 API：项目、文献上传、文本提交、异步核查、结果查询、报告导出。
+- Celery Worker：PDF 解析、chunk 切分、embedding、检索、claim-evidence 判定、聚合评分。
+- PostgreSQL + pgvector：保存项目、文献、chunks、claims、evidences、verification results。
+- Redis：本地异步任务队列。
+- Next.js 工作台：项目、文献库、输入文本、运行状态、风险概览、证据卡片、Markdown 导出。
+- Sealos 兼容：服务拆分、S3-compatible Object Storage、健康检查、部署文档和环境变量模板。
+
+## 开发阶段
+
+### 阶段 0：工程骨架
+
+- 初始化 Git 工程。
+- 创建 `backend/`、`frontend/`、`deploy/sealos/`、`.github/workflows/`。
+- 配置 Docker Compose、Dockerfile、`.env.example`、`.gitignore`。
+
+### 阶段 1：文献解析与索引
+
+- 上传 PDF 到本地 `/data/uploads` 或 S3-compatible Object Storage。
+- 使用 PyMuPDF/pdfplumber 抽取文本和页码。
+- 将正文切分为可追溯 chunks。
+- 生成 384 维 embedding，写入 pgvector。
+
+### 阶段 2：声称抽取
+
+- 按段落/句子解析输入文本。
+- 识别 `[1]`、`[2-4]`、作者年份类引用。
+- 使用 OpenAI 兼容 LLM provider 抽取原子 claim。
+- 没有 API key 时使用 Mock provider 跑通流程。
+
+### 阶段 3：证据检索与判定
+
+- 在项目文献库中执行关键词 + 向量混合检索。
+- 对每条 claim 保留 top evidence。
+- 使用 LLM 或 Mock 判定 `SUPPORTS`、`PARTIALLY_SUPPORTS`、`REFUTES`、`NOT_ENOUGH_INFO`、`IRRELEVANT`。
+- 聚合为 PRD 中的主 verdict、confidence、risk level 和 risk flags。
+
+### 阶段 4：报告与部署
+
+- 输出 Markdown 报告。
+- 提供 `/healthz`、`/readyz` 供 Sealos 健康检查。
+- 准备 Sealos 环境变量模板和上线检查清单。
+- 通过 GitHub Actions 构建 API/Worker/Web 镜像到 GHCR。
+
+## 本地启动
+
+1. 复制环境变量：
+
+```bash
+cp .env.example .env
+```
+
+2. 如需真实 LLM，把 `.env` 改为：
+
+```bash
+LLM_PROVIDER=openai_compatible
+OPENAI_API_KEY=你的密钥
+OPENAI_BASE_URL=https://api.openai.com/v1
+OPENAI_MODEL=gpt-4.1-mini
+EMBEDDING_MODEL=text-embedding-3-small
+```
+
+3. 启动：
+
+```bash
+docker compose up --build
+```
+
+4. 打开：
+
+- Web：http://localhost:3000
+- API：http://localhost:8000
+- API 文档：http://localhost:8000/docs
+
+默认访问 token 是 `.env` 中的 `APP_ACCESS_TOKEN`，前端通过 `NEXT_PUBLIC_APP_ACCESS_TOKEN` 传给 API。
+
+## 常用命令
+
+```bash
+# 后端测试
+cd backend
+pytest
+
+# 前端开发
+cd frontend
+npm install
+npm run dev
+
+# 数据库迁移
+cd backend
+alembic upgrade head
+```
+
+## API 简例
+
+所有 `/api/*` 请求都需要：
+
+```http
+X-Access-Token: dev-token
+```
+
+主要接口：
+
+- `POST /api/projects`
+- `GET /api/projects`
+- `POST /api/projects/{project_id}/documents`
+- `GET /api/documents/{document_id}`
+- `POST /api/projects/{project_id}/input-texts`
+- `POST /api/input-texts/{input_text_id}/verify`
+- `GET /api/runs/{run_id}`
+- `GET /api/runs/{run_id}/results`
+- `GET /api/runs/{run_id}/export?format=markdown`
+
+## Sealos 部署
+
+详见 [deploy/sealos/README.md](deploy/sealos/README.md)。
+
+建议服务拆分：
+
+- Web：Next.js，端口 `3000`，公网访问。
+- API：FastAPI，端口 `8000`，公网或内网访问。
+- Worker：Celery，不开放公网端口。
+- PostgreSQL：Sealos 托管 PostgreSQL 或兼容实例。
+- Redis：Sealos 应用模板或 `redis:7-alpine` 内网部署。
+- Object Storage：Sealos S3-compatible Object Storage，设置 `STORAGE_BACKEND=s3`。
+
+## 提交规则
+
+需要提交：
+
+- 源码、迁移、Dockerfile、Compose、README、AGENTS、部署模板、GitHub Actions。
+
+不要提交：
+
+- `.env`
+- `data/`
+- `uploads/`
+- `reports/`
+- 数据库卷
+- `node_modules/`
+- `.next/`
+- Python 缓存与测试缓存
+
