@@ -8,7 +8,6 @@ from __future__ import annotations
 
 from alembic import op
 import sqlalchemy as sa
-from pgvector.sqlalchemy import Vector
 from sqlalchemy.dialects import postgresql
 
 revision = "0001_initial"
@@ -18,7 +17,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    op.execute("CREATE EXTENSION IF NOT EXISTS vector")
     op.create_table(
         "projects",
         sa.Column("id", postgresql.UUID(as_uuid=True), primary_key=True),
@@ -55,7 +53,7 @@ def upgrade() -> None:
         sa.Column("chunk_text", sa.Text(), nullable=False),
         sa.Column("chunk_type", sa.Text(), nullable=False, server_default="body"),
         sa.Column("token_count", sa.Integer(), nullable=False, server_default="0"),
-        sa.Column("embedding", Vector(384), nullable=True),
+        sa.Column("embedding", postgresql.JSONB(), nullable=True),
         sa.Column("created_at", sa.DateTime(timezone=True), nullable=False),
     )
     op.create_table(
@@ -147,11 +145,9 @@ def upgrade() -> None:
     op.create_index("ix_claims_run_id", "claims", ["run_id"])
     op.create_index("ix_evidences_claim_id", "evidences", ["claim_id"])
     op.create_index("ix_verification_results_run_id", "verification_results", ["run_id"])
-    op.execute("CREATE INDEX ix_document_chunks_embedding ON document_chunks USING ivfflat (embedding vector_cosine_ops) WITH (lists = 100)")
 
 
 def downgrade() -> None:
-    op.drop_index("ix_document_chunks_embedding", table_name="document_chunks")
     op.drop_table("citation_bindings")
     op.drop_table("verification_results")
     op.drop_table("evidences")
@@ -161,4 +157,3 @@ def downgrade() -> None:
     op.drop_table("document_chunks")
     op.drop_table("documents")
     op.drop_table("projects")
-
