@@ -1,17 +1,13 @@
 import type { DocumentRecord, InputText, Project, Run, RunResults } from "./types";
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_BASE_URL || "http://localhost:8000";
-const APP_ACCESS_TOKEN = process.env.NEXT_PUBLIC_APP_ACCESS_TOKEN || "dev-token";
-
-type JsonValue = Record<string, unknown> | unknown[];
+const API_PROXY_BASE = "/api/backend";
 
 async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
-  headers.set("X-Access-Token", APP_ACCESS_TOKEN);
   if (options.body && !(options.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
-  const response = await fetch(`${API_BASE_URL}${path}`, { ...options, headers, cache: "no-store" });
+  const response = await fetch(`${API_PROXY_BASE}${path}`, { ...options, headers, cache: "no-store" });
   if (!response.ok) {
     const detail = await response.text();
     throw new Error(detail || `HTTP ${response.status}`);
@@ -20,8 +16,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
 }
 
 export const api = {
-  baseUrl: API_BASE_URL,
-  token: APP_ACCESS_TOKEN,
+  baseUrl: API_PROXY_BASE,
 
   listProjects() {
     return request<Project[]>("/api/projects");
@@ -69,7 +64,7 @@ export const api = {
   },
 
   exportUrl(runId: string) {
-    return `${API_BASE_URL}/api/runs/${runId}/export?format=markdown`;
+    return `${API_PROXY_BASE}/api/runs/${runId}/export?format=markdown`;
   }
 };
 

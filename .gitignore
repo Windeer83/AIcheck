@@ -1,5 +1,6 @@
 .env
 .env.*
+deploy/sealos/.env*
 !.env.example
 __pycache__/
 *.py[cod]
@@ -26,4 +27,3 @@ Thumbs.db
 *.log
 tmp/
 temp/
-
