@@ -25,6 +25,11 @@ app.add_middleware(
 app.include_router(router)
 
 
+@app.get("/")
+def root() -> dict[str, str]:
+    return {"status": "ok", "service": "AI Output Factcheck API", "docs": "/docs"}
+
+
 @app.get("/healthz")
 def healthz() -> dict[str, str]:
     return {"status": "ok"}
@@ -35,4 +40,3 @@ def readyz() -> dict[str, str]:
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
     return {"status": "ready"}
-
