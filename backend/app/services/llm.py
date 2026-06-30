@@ -125,7 +125,10 @@ class OpenAICompatibleProvider(MockLLMProvider):
 
     def extract_claims(self, text: str) -> list[ExtractedClaim]:
         prompt = CLAIM_EXTRACTION_PROMPT.replace("{text}", text)
-        parsed = self._chat_json(prompt)
+        try:
+            parsed = self._chat_json(prompt)
+        except Exception:
+            return super().extract_claims(text)
         claims: list[ExtractedClaim] = []
         cursor = 0
         for index, item in enumerate(_ensure_list(parsed)):
