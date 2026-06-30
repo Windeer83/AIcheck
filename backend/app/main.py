@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy import text
@@ -8,6 +10,8 @@ from app.api import router
 from app.config import settings
 from app.database import engine
 from app.tasks import requeue_incomplete_documents
+
+logger = logging.getLogger(__name__)
 
 app = FastAPI(
     title="AI Output Factcheck API",
@@ -28,7 +32,10 @@ app.include_router(router)
 
 @app.on_event("startup")
 def startup_requeue_incomplete_documents() -> None:
-    requeue_incomplete_documents()
+    try:
+        requeue_incomplete_documents()
+    except Exception:
+        logger.exception("Could not requeue incomplete document parsing tasks during startup")
 
 
 @app.get("/")
