@@ -39,7 +39,7 @@ jobs:
       - uses: docker/metadata-action@v5
         id: meta
         with:
-          images: ghcr.io/${{ github.repository }}-${{ matrix.name }}
+          images: ghcr.io/windeer83/aicheck-${{ matrix.name }}
           tags: |
             type=ref,event=branch
             type=ref,event=tag

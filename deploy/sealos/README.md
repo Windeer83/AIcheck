@@ -16,9 +16,9 @@
 
 推送到 GitHub 后，GitHub Actions 会构建：
 
-- `ghcr.io/<owner>/ai-output-factcheck-system-api:<tag>`
-- `ghcr.io/<owner>/ai-output-factcheck-system-worker:<tag>`
-- `ghcr.io/<owner>/ai-output-factcheck-system-web:<tag>`
+- `ghcr.io/windeer83/aicheck-api:<tag>`
+- `ghcr.io/windeer83/aicheck-worker:<tag>`
+- `ghcr.io/windeer83/aicheck-web:<tag>`
 
 如果仓库是私有仓库，GHCR 镜像也可能是私有的，需要在 Sealos 中配置镜像拉取凭据。
 
@@ -92,7 +92,7 @@ API 和 Worker 使用同一组 S3 环境变量。
 
 ## 5. 部署 API
 
-- 镜像：`ghcr.io/<owner>/ai-output-factcheck-system-api:<tag>`
+- 镜像：`ghcr.io/windeer83/aicheck-api:<tag>`
 - 端口：`8000`
 - 启动命令：
 
@@ -108,7 +108,7 @@ sh -c "alembic upgrade head && uvicorn app.main:app --host 0.0.0.0 --port 8000"
 
 ## 6. 部署 Worker
 
-- 镜像：`ghcr.io/<owner>/ai-output-factcheck-system-worker:<tag>`
+- 镜像：`ghcr.io/windeer83/aicheck-worker:<tag>`
 - 不开放公网端口。
 - 启动命令：
 
@@ -122,7 +122,7 @@ celery -A app.worker.celery_app worker --loglevel=INFO
 
 ## 7. 部署 Web
 
-- 镜像：`ghcr.io/<owner>/ai-output-factcheck-system-web:<tag>`
+- 镜像：`ghcr.io/windeer83/aicheck-web:<tag>`
 - 端口：`3000`
 - 公网访问：开启
 - 环境变量：复制 `env.web.example`。
