@@ -7,6 +7,7 @@ from sqlalchemy import text
 from app.api import router
 from app.config import settings
 from app.database import engine
+from app.tasks import requeue_incomplete_documents
 
 app = FastAPI(
     title="AI Output Factcheck API",
@@ -23,6 +24,11 @@ app.add_middleware(
 )
 
 app.include_router(router)
+
+
+@app.on_event("startup")
+def startup_requeue_incomplete_documents() -> None:
+    requeue_incomplete_documents()
 
 
 @app.get("/")
