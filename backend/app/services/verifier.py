@@ -45,7 +45,7 @@ def aggregate_verdict(
             return _build("CITATION_MISMATCH", evidences, ["UNSUPPORTED_CITATION"], "其他文献可能支持该声称，但当前引用文献未提供直接证据。", penalty=20)
         if _has_partial(cited):
             return _build("PARTIALLY_SUPPORTED", cited, _risk_flags(cited), "指定引用文献只支持部分内容，建议弱化或补充证据。", penalty=12)
-        return _build("INSUFFICIENT_EVIDENCE", evidences, ["UNSUPPORTED_CITATION"], "指定引用文献没有提供足够证据。", penalty=25)
+        return _build("INSUFFICIENT_EVIDENCE", evidences, list(dict.fromkeys(["UNSUPPORTED_CITATION", *_risk_flags(evidences)])), "指定引用文献没有提供足够证据。", penalty=25)
 
     if _has_support(evidences):
         flags = []
@@ -61,7 +61,7 @@ def aggregate_verdict(
     if _has_partial(evidences):
         return _build("PARTIALLY_SUPPORTED", evidences, _risk_flags(evidences), "证据与声称相关，但对象、范围、数值或强度不完全一致。", penalty=14)
 
-    return _build("INSUFFICIENT_EVIDENCE", evidences, ["NO_EVIDENCE_FOUND"], "检索到的证据相关性不足，不能支持或反驳该声称。", penalty=30)
+    return _build("INSUFFICIENT_EVIDENCE", evidences, _risk_flags(evidences), "检索到的证据相关性不足，不能支持或反驳该声称。", penalty=30)
 
 
 def _has_support(evidences: list[Evidence]) -> bool:

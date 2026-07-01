@@ -24,6 +24,14 @@ class ProjectRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
+class VersionRead(BaseModel):
+    backend_version: str
+    build_sha: str | None
+    build_time: str | None
+    database_revision: str | None
+    environment: str
+
+
 class DocumentRead(BaseModel):
     id: UUID
     project_id: UUID
@@ -37,7 +45,9 @@ class DocumentRead(BaseModel):
     parse_error: str | None
     metadata_confidence: float
     chunks_count: int = 0
+    citation_index: int | None = None
     created_at: datetime
+    deleted_at: datetime | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -70,6 +80,17 @@ class VerifyRequest(BaseModel):
     check_reference_authenticity: bool = True
 
 
+class RunLogRead(BaseModel):
+    id: UUID
+    run_id: UUID
+    step: str
+    level: str
+    message: str
+    created_at: datetime
+
+    model_config = ConfigDict(from_attributes=True)
+
+
 class RunRead(BaseModel):
     id: UUID
     input_text_id: UUID
@@ -81,10 +102,16 @@ class RunRead(BaseModel):
     config: dict[str, Any] | None
     report_path: str | None
     error: str | None
+    logs: list[RunLogRead] = Field(default_factory=list)
     created_at: datetime
     updated_at: datetime
 
     model_config = ConfigDict(from_attributes=True)
+
+
+class ReviewUpdate(BaseModel):
+    review_status: str = Field(pattern="^(unreviewed|confirmed|suppressed)$")
+    review_note: str | None = Field(default=None, max_length=1000)
 
 
 class EvidenceRead(BaseModel):
@@ -106,6 +133,7 @@ class EvidenceRead(BaseModel):
 
 
 class ClaimResultRead(BaseModel):
+    result_id: UUID
     claim_id: UUID
     original_sentence: str
     atomic_claim: str
@@ -121,6 +149,9 @@ class ClaimResultRead(BaseModel):
     risk_level: str
     risk_flags: list[str]
     explanation: str | None
+    review_status: str
+    review_note: str | None
+    reviewed_at: datetime | None
     evidences: list[EvidenceRead]
 
 
@@ -135,6 +166,7 @@ class ResultsSummary(BaseModel):
     refuted: int
     high_risk: int
     critical_risk: int
+    suppressed: int
 
 
 class RunResultsRead(BaseModel):

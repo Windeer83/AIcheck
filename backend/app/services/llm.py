@@ -6,7 +6,6 @@ import re
 from dataclasses import dataclass
 from typing import Any, Protocol
 
-import httpx
 
 from app.config import settings
 from app.services.citations import parse_citation_refs
@@ -148,12 +147,12 @@ class OpenAICompatibleProvider(MockLLMProvider):
                     original_sentence=sentence,
                     atomic_claim=atomic,
                     claim_type=str(item.get("claim_type") or _classify_claim(atomic)),
-                    citation_refs=[str(ref) for ref in item.get("citation_refs", [])],
+                    citation_refs=_ensure_str_list(item.get("citation_refs", [])),
                     paragraph_index=int(item.get("paragraph_index", 0)),
                     sentence_index=int(item.get("sentence_index", index)),
                     char_start=char_start,
                     char_end=char_end,
-                    check_required=bool(item.get("check_required", True)),
+                    check_required=_as_bool(item.get("check_required", True), default=True),
                     reason=str(item.get("reason") or ""),
                 )
             )
@@ -164,12 +163,12 @@ class OpenAICompatibleProvider(MockLLMProvider):
         try:
             item = self._chat_json(prompt)
             return EvidenceJudgement(
-                relation=str(item.get("relation", "NOT_ENOUGH_INFO")),
-                relevance_score=float(item.get("relevance_score", 0)),
-                entailment_score=float(item.get("entailment_score", 0)),
-                numeric_match=bool(item.get("numeric_match", False)),
-                scope_match=bool(item.get("scope_match", True)),
-                risk_flags=[str(flag) for flag in item.get("risk_flags", [])],
+                relation=_normalize_relation(item.get("relation", "NOT_ENOUGH_INFO")),
+                relevance_score=_as_score(item.get("relevance_score", 0)),
+                entailment_score=_as_score(item.get("entailment_score", 0)),
+                numeric_match=_as_bool(item.get("numeric_match", False), default=False),
+                scope_match=_as_bool(item.get("scope_match", True), default=True),
+                risk_flags=_ensure_str_list(item.get("risk_flags", [])),
                 brief_explanation=str(item.get("brief_explanation", ""))[:300],
             )
         except Exception:
@@ -177,6 +176,8 @@ class OpenAICompatibleProvider(MockLLMProvider):
 
     def embed(self, texts: list[str]) -> list[list[float]]:
         try:
+            import httpx
+
             payload: dict[str, Any] = {"model": settings.embedding_model, "input": texts, "dimensions": settings.embedding_dimensions}
             response = httpx.post(f"{self.base_url}/embeddings", headers=self.headers, json=payload, timeout=60)
             if response.status_code >= 400 and "dimensions" in payload:
@@ -190,6 +191,8 @@ class OpenAICompatibleProvider(MockLLMProvider):
             return super().embed(texts)
 
     def _chat_json(self, prompt: str) -> Any:
+        import httpx
+
         base_payload = {
             "model": settings.openai_model,
             "temperature": 0,
@@ -310,6 +313,55 @@ def _ensure_list(value: Any) -> list[dict[str, Any]]:
         return [item for item in value if isinstance(item, dict)]
     if isinstance(value, dict):
         return [value]
+    return []
+def _normalize_relation(value: Any) -> str:
+    relation = str(value or "NOT_ENOUGH_INFO").strip().upper()
+    aliases = {
+        "SUPPORT": "SUPPORTS",
+        "SUPPORTED": "SUPPORTS",
+        "PARTIAL": "PARTIALLY_SUPPORTS",
+        "PARTIALLY_SUPPORTED": "PARTIALLY_SUPPORTS",
+        "REFUTED": "REFUTES",
+        "REFUTE": "REFUTES",
+        "INSUFFICIENT_EVIDENCE": "NOT_ENOUGH_INFO",
+        "NOT_ENOUGH": "NOT_ENOUGH_INFO",
+        "NOT ENOUGH INFO": "NOT_ENOUGH_INFO",
+    }
+    normalized = aliases.get(relation, relation)
+    if normalized not in {"SUPPORTS", "PARTIALLY_SUPPORTS", "REFUTES", "NOT_ENOUGH_INFO", "IRRELEVANT"}:
+        return "NOT_ENOUGH_INFO"
+    return normalized
+
+
+def _as_score(value: Any) -> float:
+    try:
+        score = float(value)
+    except (TypeError, ValueError):
+        return 0.0
+    return max(0.0, min(1.0, score))
+
+
+def _as_bool(value: Any, default: bool) -> bool:
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    if isinstance(value, str):
+        lowered = value.strip().lower()
+        if lowered in {"true", "1", "yes", "y", "是"}:
+            return True
+        if lowered in {"false", "0", "no", "n", "否"}:
+            return False
+    return default
+
+
+def _ensure_str_list(value: Any) -> list[str]:
+    if value is None:
+        return []
+    if isinstance(value, str):
+        return [value] if value else []
+    if isinstance(value, list):
+        return [str(item) for item in value if str(item).strip()]
     return []
 
 

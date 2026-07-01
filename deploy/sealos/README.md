@@ -24,6 +24,8 @@
 
 如果仓库是私有仓库，GHCR 镜像也可能是私有的，需要在 Sealos 中配置镜像拉取凭据。
 
+演示阶段可以使用 `:main` 标签，但需要在 Sealos 里关注镜像拉取策略和应用重启；如果要可追溯回滚，优先使用 GitHub Actions 生成的 `sha-*` 标签。
+
 ## 2. 新手推荐：两个应用部署
 
 ### 2.1 Backend 应用
@@ -50,7 +52,7 @@ Arguments 填：
 
 环境变量：复制 `deploy/sealos/.env.backend-allinone`，或参考 `env.backend-allinone.example`。
 
-这个方式把 API 和 Worker 放在同一个容器里，所以 PDF 文件可以用本地 `/data` 共享，暂时不需要 Object Storage。
+这个方式把 API 和 Worker 放在同一个容器里，所以 PDF 文件可以用本地 `/data` 共享，暂时不需要 Object Storage。启动脚本会先运行 `alembic upgrade head`，包括文献软删除和人工复核字段迁移。
 
 ### 2.2 Web 应用
 
@@ -188,6 +190,11 @@ APP_ACCESS_TOKEN=replace-with-the-same-token-as-api
 2. API `/healthz` 返回 `{"status":"ok"}`。
 3. API `/readyz` 返回 `{"status":"ready"}`。
 4. 创建项目成功。
-5. 上传 PDF 后 Worker 能解析 chunks。
-6. 启动核查后 PostgreSQL 有 claims/evidences/results。
-7. Object Storage 中出现上传 PDF 和 Markdown 报告。
+5. 可以批量上传 PDF，Worker 能解析 chunks。
+6. 可以移除文献、重新解析失败文献。
+7. 启动核查后 PostgreSQL 有 claims/evidences/results。
+8. 点击原文高亮能定位到核查表对应行。
+9. 可以确认或屏蔽某条核查结果，刷新后状态仍保留。
+10. 能导出包含 evidence 和人工复核记录的 Markdown 报告。
+
+两应用部署使用本地 `/data` 挂载保存上传 PDF 和 Markdown 报告；只有拆分 API/Worker 时才要求 Object Storage。

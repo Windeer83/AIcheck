@@ -47,6 +47,7 @@ class Document(Base):
     metadata_confidence: Mapped[float] = mapped_column(Float, default=0, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, onupdate=utcnow, nullable=False)
+    deleted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
     project: Mapped[Project] = relationship(back_populates="documents")
     chunks: Mapped[list[DocumentChunk]] = relationship(back_populates="document", cascade="all, delete-orphan")
@@ -104,6 +105,20 @@ class Run(Base):
     input_text: Mapped[InputText] = relationship(back_populates="runs")
     claims: Mapped[list[Claim]] = relationship(back_populates="run")
     results: Mapped[list[VerificationResult]] = relationship(back_populates="run")
+    logs: Mapped[list[RunLog]] = relationship(back_populates="run", cascade="all, delete-orphan")
+
+
+class RunLog(Base):
+    __tablename__ = "run_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("runs.id"), nullable=False)
+    step: Mapped[str] = mapped_column(Text, nullable=False)
+    level: Mapped[str] = mapped_column(Text, default="info", nullable=False)
+    message: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
+
+    run: Mapped[Run] = relationship(back_populates="logs")
 
 
 class Claim(Base):
@@ -167,6 +182,9 @@ class VerificationResult(Base):
     risk_flags: Mapped[list[str] | None] = mapped_column(JSONB)
     explanation: Mapped[str | None] = mapped_column(Text)
     best_evidence_ids: Mapped[list[str] | None] = mapped_column(JSONB)
+    review_status: Mapped[str] = mapped_column(Text, default="unreviewed", nullable=False)
+    review_note: Mapped[str | None] = mapped_column(Text)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=utcnow, nullable=False)
 
     claim: Mapped[Claim] = relationship(back_populates="result")

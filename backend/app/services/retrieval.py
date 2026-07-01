@@ -32,7 +32,7 @@ def retrieve_chunks(
     chunks = (
         db.query(DocumentChunk)
         .join(DocumentChunk.document)
-        .filter(Document.project_id == project_id, Document.parse_status == "completed")
+        .filter(Document.project_id == project_id, Document.parse_status == "completed", Document.deleted_at.is_(None))
         .all()
     )
     ranked: list[RetrievedChunk] = []

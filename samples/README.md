@@ -21,4 +21,15 @@
 - 样本 D 混合了支持、数字错误、范围夸大和证据不足，适合做综合验收。
 
 模型输出会受 LLM provider 影响，最终 verdict 可能略有波动。验收时重点看 evidence 是否被正确检索、页码是否可追溯、风险解释是否指出关键差异。
+## 自动化中文 Gold Cases
 
+后端新增 `backend/tests/test_chinese_gold_cases.py`，用中文 claim/evidence 覆盖稳定演示 MVP 的关键风险：
+
+- 支持类结论。
+- 数值不一致并保留 `UNSUPPORTED_NUMERIC_VALUE`。
+- 引用错配。
+- 过度概括。
+- 原文反驳。
+- 不可核查表达。
+
+这些用例使用 deterministic Mock/provider 和聚合规则，不依赖外部模型或互联网。真实 SiliconFlow 的端到端效果仍建议结合本目录 PDF 做手工 smoke test。

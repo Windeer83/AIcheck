@@ -1,4 +1,4 @@
-import type { DocumentRecord, InputText, Project, Run, RunResults } from "./types";
+import type { ClaimResult, DocumentRecord, InputText, Project, ReviewStatus, Run, RunResults, VersionInfo } from "./types";
 
 const API_PROXY_BASE = "/api/backend";
 
@@ -12,11 +12,18 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
     const detail = await response.text();
     throw new Error(detail || `HTTP ${response.status}`);
   }
+  if (response.status === 204) {
+    return undefined as T;
+  }
   return response.json() as Promise<T>;
 }
 
 export const api = {
   baseUrl: API_PROXY_BASE,
+
+  getVersion() {
+    return request<VersionInfo>("/api/version");
+  },
 
   listProjects() {
     return request<Project[]>("/api/projects");
@@ -35,6 +42,14 @@ export const api = {
     form.append("file", file);
     form.append("source_type", "pdf");
     return request<DocumentRecord>(`/api/projects/${projectId}/documents`, { method: "POST", body: form });
+  },
+
+  deleteDocument(documentId: string) {
+    return request<void>(`/api/documents/${documentId}`, { method: "DELETE" });
+  },
+
+  retryDocument(documentId: string) {
+    return request<DocumentRecord>(`/api/documents/${documentId}/retry`, { method: "POST" });
   },
 
   createInputText(projectId: string, payload: { title: string; raw_text: string; section_type: string; citation_style: string }) {
@@ -61,6 +76,10 @@ export const api = {
 
   getResults(runId: string) {
     return request<RunResults>(`/api/runs/${runId}/results`);
+  },
+
+  reviewResult(resultId: string, payload: { review_status: ReviewStatus; review_note?: string | null }) {
+    return request<ClaimResult>(`/api/verification-results/${resultId}/review`, { method: "PATCH", body: JSON.stringify(payload) });
   },
 
   exportUrl(runId: string) {

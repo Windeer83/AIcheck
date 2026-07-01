@@ -4,12 +4,12 @@
 
 ## 当前交付范围
 
-- FastAPI 后端 API：项目、文献上传、文本提交、异步核查、结果查询、报告导出。
+- FastAPI 后端 API：项目、文献上传、文献软删除/重试、文本提交、异步核查、运行日志、结果查询、人工复核、版本查询、报告导出。
 - Celery Worker：PDF 解析、chunk 切分、embedding、检索、claim-evidence 判定、聚合评分。
 - PostgreSQL：保存项目、文献、chunks、claims、evidences、verification results；MVP 默认用 JSONB 存储 embedding，避免部署环境缺少 pgvector 扩展。
 - Redis：本地异步任务队列。
-- Next.js 工作台：项目、文献库、输入文本、运行状态、风险概览、证据卡片、Markdown 导出。
-- Sealos 兼容：服务拆分、S3-compatible Object Storage、健康检查、部署文档和环境变量模板。
+- Next.js 中文工作台：项目、批量 PDF 上传、文献删除/重试、上传顺序引用编号、输入文本、原文高亮联动核查表、核查表筛选、实时运行日志、风险概览、证据卡片、核查结果确认/屏蔽、Markdown 导出。
+- Sealos 兼容：稳定演示优先使用 Backend all-in-one + Web 两应用部署；后续生产化可拆分 API/Worker/Object Storage。
 
 ## 开发阶段
 
@@ -42,9 +42,9 @@
 
 ### 阶段 4：报告与部署
 
-- 输出 Markdown 报告。
+- 输出 Markdown 报告，报告包含人工复核记录；已屏蔽结果不进入风险概览但保留可追溯 evidence。
 - 提供 `/healthz`、`/readyz` 供 Sealos 健康检查。
-- 准备 Sealos 环境变量模板和上线检查清单。
+- 准备 Sealos 两应用部署环境变量模板、健康检查和上线检查清单。
 - 通过 GitHub Actions 构建 API/Worker/Web 镜像到 GHCR。
 
 ## 本地启动
@@ -110,24 +110,27 @@ X-Access-Token: dev-token
 - `GET /api/projects`
 - `POST /api/projects/{project_id}/documents`
 - `GET /api/documents/{document_id}`
+- `DELETE /api/documents/{document_id}`
+- `POST /api/documents/{document_id}/retry`
 - `POST /api/projects/{project_id}/input-texts`
 - `POST /api/input-texts/{input_text_id}/verify`
 - `GET /api/runs/{run_id}`
 - `GET /api/runs/{run_id}/results`
+- `PATCH /api/verification-results/{result_id}/review`
+- `GET /api/version`
 - `GET /api/runs/{run_id}/export?format=markdown`
 
 ## Sealos 部署
 
 详见 [deploy/sealos/README.md](deploy/sealos/README.md)。
 
-建议服务拆分：
+稳定演示推荐：
 
-- Web：Next.js，端口 `3000`，公网访问。
-- API：FastAPI，端口 `8000`，公网或内网访问。
-- Worker：Celery，不开放公网端口。
+- Backend all-in-one：FastAPI + Celery Worker，端口 `8000`，挂载 `/data`，运行 `alembic upgrade head` 后启动 API 和 Worker。
+- Web：Next.js，端口 `3000`，公网访问，通过服务端代理访问 Backend。
 - PostgreSQL：Sealos 托管 PostgreSQL 或兼容实例。
 - Redis：Sealos 应用模板或 `redis:7-alpine` 内网部署。
-- Object Storage：Sealos S3-compatible Object Storage，设置 `STORAGE_BACKEND=s3`。
+- Object Storage：稳定演示阶段不强制；API/Worker 拆分后再设置 `STORAGE_BACKEND=s3`。
 
 ## 提交规则
 
