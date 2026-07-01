@@ -204,5 +204,3 @@ class CitationBinding(Base):
 
     input_text: Mapped[InputText] = relationship()
     document: Mapped[Document | None] = relationship()
-
-
