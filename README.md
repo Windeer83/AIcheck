@@ -1,14 +1,14 @@
 # AI 输出事实核查与可信度评估系统
 
-面向论文写作场景的本地单用户 MVP：上传 PDF 文献，粘贴 AI 生成段落，系统抽取事实声称、检索证据、判断支持关系，并导出 Markdown 核查报告。
+面向论文写作场景的本地单用户 MVP：上传 PDF 文献或选择 OpenAlex 开放学术库，粘贴 AI 生成段落，系统抽取事实声称、匹配证据、判断支持关系，并导出 Markdown 核查报告。
 
 ## 当前交付范围
 
 - FastAPI 后端 API：项目、文献上传、文献软删除/重试、文本提交、异步核查、运行日志、结果查询、人工复核、版本查询、报告导出。
-- Celery Worker：PDF 解析、chunk 切分、embedding、检索、claim-evidence 判定、聚合评分。
+- Celery Worker：PDF 解析、chunk 切分、embedding、内部库/OpenAlex 检索、claim-evidence 判定、聚合评分。
 - PostgreSQL：保存项目、文献、chunks、claims、evidences、verification results；MVP 默认用 JSONB 存储 embedding，避免部署环境缺少 pgvector 扩展。
 - Redis：本地异步任务队列。
-- Next.js 中文工作台：项目、批量 PDF 上传、文献删除/重试、上传顺序引用编号、输入文本、原文高亮联动核查表、核查表筛选、实时运行日志、风险概览、证据卡片、核查结果确认/屏蔽、Markdown 导出。
+- Next.js 中文工作台：项目、批量 PDF 上传、文献删除/重试、上传顺序引用编号、内部库/OpenAlex 双证据来源、输入文本、原文下划线高亮联动核查表、核查表筛选、实时运行日志、风险概览、证据卡片、核查结果确认/屏蔽、Markdown 导出。
 - Sealos 兼容：稳定演示优先使用 Backend all-in-one + Web 两应用部署；后续生产化可拆分 API/Worker/Object Storage。
 
 ## 开发阶段
@@ -36,6 +36,7 @@
 ### 阶段 3：证据检索与判定
 
 - 在项目文献库中执行关键词 + 向量混合检索。
+- 可切换到 OpenAlex Works 开放库模式：按 claim 搜索开放学术记录，将题名、作者、年份、DOI、来源 URL 和摘要导入为只读外部证据片段。
 - 对每条 claim 保留 top evidence。
 - 使用 LLM 或 Mock 判定 `SUPPORTS`、`PARTIALLY_SUPPORTS`、`REFUTES`、`NOT_ENOUGH_INFO`、`IRRELEVANT`。
 - 聚合为 PRD 中的主 verdict、confidence、risk level 和 risk flags。
@@ -63,6 +64,15 @@ OPENAI_API_KEY=你的密钥
 OPENAI_BASE_URL=https://api.siliconflow.cn/v1
 OPENAI_MODEL=deepseek-ai/DeepSeek-V4-Pro
 EMBEDDING_MODEL=BAAI/bge-m3
+```
+
+开放库模式使用 OpenAlex Works API。可选配置如下，留空时会尝试匿名请求；如果部署环境无法访问外网或被限流，系统会写入 warning 并降级为无外部证据，不会用模型常识补证。
+
+```bash
+OPENALEX_API_KEY=
+OPENALEX_EMAIL=
+OPENALEX_PER_CLAIM_LIMIT=5
+OPENALEX_TIMEOUT_SECONDS=12
 ```
 
 3. 启动：

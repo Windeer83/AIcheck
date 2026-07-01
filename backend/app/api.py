@@ -107,7 +107,7 @@ def upload_document(
 def list_documents(project_id: UUID, db: Session = Depends(get_db)) -> list[DocumentRead]:
     documents = (
         db.query(Document)
-        .filter(Document.project_id == project_id, Document.deleted_at.is_(None))
+        .filter(Document.project_id == project_id, Document.deleted_at.is_(None), Document.source_type != "openalex")
         .order_by(Document.created_at.asc())
         .all()
     )
@@ -242,7 +242,9 @@ def export_report(run_id: UUID, format: str = "markdown", db: Session = Depends(
     else:
         input_text = db.get(InputText, run.input_text_id)
         documents = (
-            db.query(Document).filter(Document.project_id == input_text.project_id, Document.deleted_at.is_(None)).all()
+            db.query(Document)
+            .filter(Document.project_id == input_text.project_id, Document.deleted_at.is_(None), Document.source_type != "openalex")
+            .all()
             if input_text
             else []
         )
@@ -282,11 +284,11 @@ def _document_read(db: Session, document: Document, citation_index: int | None =
 
 
 def _citation_index(db: Session, document: Document) -> int | None:
-    if document.deleted_at:
+    if document.deleted_at or document.source_type == "openalex":
         return None
     documents = (
         db.query(Document.id)
-        .filter(Document.project_id == document.project_id, Document.deleted_at.is_(None))
+        .filter(Document.project_id == document.project_id, Document.deleted_at.is_(None), Document.source_type != "openalex")
         .order_by(Document.created_at.asc())
         .all()
     )
@@ -328,6 +330,7 @@ def _claim_result_read(claim: Claim, result: VerificationResult) -> ClaimResultR
                 document_id=evidence.document_id,
                 chunk_id=evidence.chunk_id,
                 document_title=evidence.document.title if evidence.document else None,
+                source_priority=evidence.source_priority,
                 evidence_text=evidence.evidence_text,
                 page_start=evidence.page_start,
                 page_end=evidence.page_end,

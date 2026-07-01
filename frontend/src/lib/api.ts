@@ -1,4 +1,4 @@
-import type { ClaimResult, DocumentRecord, InputText, Project, ReviewStatus, Run, RunResults, VersionInfo } from "./types";
+import type { ClaimResult, DocumentRecord, EvidenceSource, InputText, Project, ReviewStatus, Run, RunResults, VersionInfo } from "./types";
 
 const API_PROXY_BASE = "/api/backend";
 
@@ -56,14 +56,15 @@ export const api = {
     return request<InputText>(`/api/projects/${projectId}/input-texts`, { method: "POST", body: JSON.stringify(payload) });
   },
 
-  startVerification(inputTextId: string) {
+  startVerification(inputTextId: string, options: { evidence_source: EvidenceSource }) {
     return request<Run>(`/api/input-texts/${inputTextId}/verify`, {
       method: "POST",
       body: JSON.stringify({
         mode: "strict_paper",
+        evidence_source: options.evidence_source,
         retrieval_top_k: 12,
         evidence_top_n: 5,
-        external_search_enabled: false,
+        external_search_enabled: options.evidence_source === "openalex",
         check_citations: true,
         check_reference_authenticity: true
       })

@@ -33,6 +33,10 @@ class Settings(BaseSettings):
     retrieval_top_k: int = Field(default=12, ge=1, le=50)
     evidence_top_n: int = Field(default=5, ge=1, le=20)
     embedding_dimensions: int = 384
+    openalex_api_key: str | None = None
+    openalex_email: str | None = None
+    openalex_per_claim_limit: int = Field(default=5, ge=1, le=10)
+    openalex_timeout_seconds: float = Field(default=12, gt=0, le=60)
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
@@ -47,4 +51,3 @@ def get_settings() -> Settings:
 
 
 settings = get_settings()
-

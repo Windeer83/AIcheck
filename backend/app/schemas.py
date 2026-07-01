@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -73,6 +73,7 @@ class InputTextRead(BaseModel):
 
 class VerifyRequest(BaseModel):
     mode: str = "strict_paper"
+    evidence_source: Literal["project_library", "openalex"] = "project_library"
     retrieval_top_k: int = Field(default=12, ge=1, le=50)
     evidence_top_n: int = Field(default=5, ge=1, le=20)
     external_search_enabled: bool = False
@@ -119,6 +120,7 @@ class EvidenceRead(BaseModel):
     document_id: UUID
     chunk_id: UUID
     document_title: str | None
+    source_priority: str
     evidence_text: str
     page_start: int
     page_end: int
@@ -172,4 +174,3 @@ class ResultsSummary(BaseModel):
 class RunResultsRead(BaseModel):
     summary: ResultsSummary
     claims: list[ClaimResultRead]
-

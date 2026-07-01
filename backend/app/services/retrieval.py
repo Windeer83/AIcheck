@@ -24,23 +24,34 @@ def retrieve_chunks(
     claim_text: str,
     provider: LLMProvider,
     citation_document_ids: set[UUID] | None = None,
+    document_ids: set[UUID] | None = None,
+    excluded_source_types: set[str] | None = None,
+    source_types: set[str] | None = None,
     top_k: int = 12,
     top_n: int = 5,
 ) -> list[RetrievedChunk]:
     query_vector = provider.embed([claim_text])[0]
     query_numbers = extract_numbers(claim_text)
-    chunks = (
+    chunk_query = (
         db.query(DocumentChunk)
         .join(DocumentChunk.document)
         .filter(Document.project_id == project_id, Document.parse_status == "completed", Document.deleted_at.is_(None))
-        .all()
     )
+    if document_ids is not None:
+        if not document_ids:
+            return []
+        chunk_query = chunk_query.filter(DocumentChunk.document_id.in_(document_ids))
+    if source_types:
+        chunk_query = chunk_query.filter(Document.source_type.in_(source_types))
+    if excluded_source_types:
+        chunk_query = chunk_query.filter(~Document.source_type.in_(excluded_source_types))
+    chunks = chunk_query.all()
     ranked: list[RetrievedChunk] = []
     for chunk in chunks:
         keyword = keyword_score(claim_text, chunk.chunk_text)
         semantic = cosine_similarity(query_vector, list(chunk.embedding or []))
         metadata = 0.0
-        priority = "project_library"
+        priority = "openalex" if chunk.document.source_type == "openalex" else "project_library"
         if citation_document_ids and chunk.document_id in citation_document_ids:
             metadata = 1.0
             priority = "cited_document"

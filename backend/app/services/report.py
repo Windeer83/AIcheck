@@ -27,10 +27,11 @@ def build_markdown_report(
         f"- 项目 ID：{input_text.project_id}",
         f"- 输入文本：{input_text.title}",
         f"- 核查模式：{(run.config or {}).get('mode', 'strict_paper')}",
-        f"- 当前文献数量：{len(documents)}",
+        f"- 证据来源模式：{_label_evidence_source((run.config or {}).get('evidence_source'))}",
+        f"- 内部上传文献数量：{len(documents)}",
         f"- 输入文本长度：{len(input_text.raw_text)}",
         f"- 核查时间：{run.updated_at.isoformat()}",
-        "- 证据来源：用户上传 PDF 文献库",
+        "- 证据保存原则：所有结论均引用 evidences 表中的 document_id、chunk_id、页码/位置和原文片段",
         "",
         "## 2. 总体结论",
         "",
@@ -75,7 +76,7 @@ def build_markdown_report(
 
     lines.extend(["", "## 5. 引用错配清单", ""])
     _append_verdict_table(lines, claims, result_by_claim, "CITATION_MISMATCH")
-    lines.extend(["", "## 6. 疑似伪造文献清单", "", "当前稳定演示 MVP 不接外部学术源；本节仅提示未绑定到上传 PDF 的引用风险，不做 DOI 真伪判断。"])
+    lines.extend(["", "## 6. 疑似伪造文献清单", "", "开放库模式会查询 OpenAlex Works 并把命中的题名、DOI、年份和摘要导入为可追溯证据片段；内部库模式仅提示未绑定到上传 PDF 的引用风险，不做 DOI 真伪判断。"])
     lines.extend(["", "## 7. 全量声称核查表", "", "| Claim ID | 原子声称 | 类型 | 判定 | 可信度 | 风险等级 | 复核状态 |", "|---|---|---|---|---:|---|---|"])
     for claim in claims:
         result = result_by_claim.get(claim.id)
@@ -177,6 +178,10 @@ def _label_verdict(verdict: str) -> str:
         "FABRICATED_REFERENCE": "疑似伪造文献",
         "NOT_VERIFIABLE": "不可核查",
     }.get(verdict, verdict)
+
+
+def _label_evidence_source(source: object) -> str:
+    return {"openalex": "OpenAlex 开放学术库", "project_library": "内部上传文献库"}.get(str(source or "project_library"), str(source or "project_library"))
 
 
 def _label_risk(risk: str) -> str:

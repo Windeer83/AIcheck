@@ -54,6 +54,8 @@ Arguments 填：
 
 这个方式把 API 和 Worker 放在同一个容器里，所以 PDF 文件可以用本地 `/data` 共享，暂时不需要 Object Storage。启动脚本会先运行 `alembic upgrade head`，包括文献软删除和人工复核字段迁移。
 
+如果要使用 OpenAlex 开放库模式，Backend 应用需要能访问公网 `api.openalex.org`。`OPENALEX_API_KEY` 和 `OPENALEX_EMAIL` 是可选项，建议在生产或演示环境中配置 email/key 以降低限流风险；不要把真实 key 写入仓库。
+
 ### 2.2 Web 应用
 
 创建第二个 Sealos 应用：
@@ -136,6 +138,8 @@ CELERY_RESULT_BACKEND=redis://default:<password>@aicheck1-redis-redis.ns-1cqo7ki
 
 API 和 Worker 使用同一组 S3 环境变量。
 
+开放库模式不依赖 Object Storage，但 API/Worker 都需要相同的 OpenAlex 配置，尤其是拆分部署时的 `OPENALEX_API_KEY`、`OPENALEX_EMAIL`、`OPENALEX_PER_CLAIM_LIMIT` 和 `OPENALEX_TIMEOUT_SECONDS`。
+
 如果 API 和 Worker 分开部署，强烈建议使用 Object Storage。否则 API 上传的 PDF 在 API 容器本地，Worker 容器可能读不到文件。临时试运行可以用 `STORAGE_BACKEND=local`，但完整核查闭环请使用 S3-compatible Object Storage。
 
 ### 3.4 部署 API
@@ -192,9 +196,10 @@ APP_ACCESS_TOKEN=replace-with-the-same-token-as-api
 4. 创建项目成功。
 5. 可以批量上传 PDF，Worker 能解析 chunks。
 6. 可以移除文献、重新解析失败文献。
-7. 启动核查后 PostgreSQL 有 claims/evidences/results。
-8. 点击原文高亮能定位到核查表对应行。
-9. 可以确认或屏蔽某条核查结果，刷新后状态仍保留。
-10. 能导出包含 evidence 和人工复核记录的 Markdown 报告。
+7. 内部库模式启动核查后 PostgreSQL 有 claims/evidences/results。
+8. OpenAlex 模式能写入 `source_type=openalex` 的外部证据文档和对应 evidences；如果外网不可用，运行日志应出现 warning 且结果为证据不足。
+9. 点击原文高亮能定位到核查表对应行。
+10. 可以确认或屏蔽某条核查结果，刷新后状态仍保留。
+11. 能导出包含 evidence、证据来源模式和人工复核记录的 Markdown 报告。
 
 两应用部署使用本地 `/data` 挂载保存上传 PDF 和 Markdown 报告；只有拆分 API/Worker 时才要求 Object Storage。

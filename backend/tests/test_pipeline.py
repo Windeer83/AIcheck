@@ -3,6 +3,7 @@ from __future__ import annotations
 from app.services.citations import parse_citation_refs
 from app.services.chunking import PageText, chunk_pages
 from app.services.llm import MockLLMProvider
+from app.services.openalex import OpenAlexWork, abstract_from_inverted_index, build_openalex_evidence_text
 from app.services.verifier import aggregate_verdict
 
 
@@ -29,3 +30,26 @@ def test_aggregate_no_evidence_is_insufficient() -> None:
     assert verdict.verdict == "INSUFFICIENT_EVIDENCE"
     assert "NO_EVIDENCE_FOUND" in verdict.risk_flags
 
+
+def test_openalex_abstract_inverted_index_is_restored() -> None:
+    assert abstract_from_inverted_index({"sleep": [0], "improves": [1], "memory": [2]}) == "sleep improves memory"
+
+
+def test_openalex_evidence_text_keeps_traceable_metadata() -> None:
+    text = build_openalex_evidence_text(
+        OpenAlexWork(
+            openalex_id="https://openalex.org/W123",
+            title="Sleep and memory",
+            authors=["A. Zhang"],
+            year=2024,
+            doi="10.1234/example",
+            source_name="Example Journal",
+            landing_page_url="https://doi.org/10.1234/example",
+            abstract="Sleep improved vocabulary recall.",
+            cited_by_count=8,
+        )
+    )
+
+    assert "Title: Sleep and memory" in text
+    assert "DOI: 10.1234/example" in text
+    assert "Abstract: Sleep improved vocabulary recall." in text

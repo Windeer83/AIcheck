@@ -9,7 +9,8 @@ from app.database import SessionLocal
 from app.models import CitationBinding, Claim, Document, DocumentChunk, Evidence, InputText, Run, RunLog, VerificationResult
 from app.services.chunking import chunk_pages
 from app.services.citations import bind_citations
-from app.services.llm import get_llm_provider
+from app.services.llm import LLMProvider, get_llm_provider
+from app.services.openalex import OPENALEX_SOURCE_TYPE, ensure_openalex_documents, search_openalex_works
 from app.services.pdf_parser import extract_metadata_from_pages, extract_pdf_pages
 from app.services.report import build_markdown_report
 from app.services.retrieval import retrieve_chunks
@@ -126,13 +127,15 @@ def verify_input_text(db: Session, input_text_id: UUID, run_id: UUID, options: d
         db.commit()
 
         _update_run(db, run, "running", 0.18, "binding_citations", message="开始识别并绑定文本中的引用标记。")
-        documents = db.query(Document).filter(Document.project_id == input_text.project_id, Document.parse_status == "completed", Document.deleted_at.is_(None)).all()
+        evidence_source = _evidence_source(options)
+        documents = _project_library_documents(db, input_text.project_id)
         refs = list(dict.fromkeys(ref for claim in claims for ref in (claim.citation_refs or [])))
         db.query(CitationBinding).filter(CitationBinding.input_text_id == input_text.id).delete()
         bindings = bind_citations(input_text.id, refs, documents)
         db.add_all(bindings)
         matched = sum(1 for binding in bindings if binding.document_id)
-        _append_run_log(db, run, "binding_citations", f"发现 {len(refs)} 个引用标记，已按当前文献库匹配 {matched} 个。")
+        _append_run_log(db, run, "binding_citations", f"发现 {len(refs)} 个引用标记，已按内部上传文献库匹配 {matched} 个。")
+        _append_run_log(db, run, "binding_citations", f"本次证据来源模式：{_source_label(evidence_source)}。")
         db.commit()
         binding_map = {binding.citation_key: binding.document_id for binding in bindings if binding.document_id}
 
@@ -145,15 +148,30 @@ def verify_input_text(db: Session, input_text_id: UUID, run_id: UUID, options: d
             citation_document_ids = {binding_map[ref] for ref in (claim.citation_refs or []) if ref in binding_map}
             retrieved = []
             if claim.check_required:
-                retrieved = retrieve_chunks(
-                    db,
-                    input_text.project_id,
-                    claim.atomic_claim,
-                    provider,
-                    citation_document_ids=citation_document_ids,
-                    top_k=top_k,
-                    top_n=top_n,
-                )[:top_n]
+                if evidence_source == OPENALEX_SOURCE_TYPE:
+                    citation_document_ids = set()
+                    openalex_document_ids = _openalex_document_ids_for_claim(db, run, input_text.project_id, claim.atomic_claim, provider)
+                    retrieved = retrieve_chunks(
+                        db,
+                        input_text.project_id,
+                        claim.atomic_claim,
+                        provider,
+                        document_ids=openalex_document_ids,
+                        source_types={OPENALEX_SOURCE_TYPE},
+                        top_k=top_k,
+                        top_n=top_n,
+                    )[:top_n]
+                else:
+                    retrieved = retrieve_chunks(
+                        db,
+                        input_text.project_id,
+                        claim.atomic_claim,
+                        provider,
+                        citation_document_ids=citation_document_ids,
+                        excluded_source_types={OPENALEX_SOURCE_TYPE},
+                        top_k=top_k,
+                        top_n=top_n,
+                    )[:top_n]
             else:
                 _append_run_log(db, run, "verifying_claims", f"第 {index} 条为不可核查表达，跳过证据检索。")
             evidences: list[Evidence] = []
@@ -246,3 +264,49 @@ def _append_run_log(db: Session, run: Run, step: str, message: str, level: str =
 def _preview(text: str, limit: int = 72) -> str:
     normalized = " ".join(text.split())
     return normalized if len(normalized) <= limit else f"{normalized[:limit]}..."
+
+
+def _evidence_source(options: dict) -> str:
+    source = str(options.get("evidence_source") or "").strip()
+    if source == OPENALEX_SOURCE_TYPE or options.get("external_search_enabled") is True:
+        return OPENALEX_SOURCE_TYPE
+    return "project_library"
+
+
+def _source_label(source: str) -> str:
+    return "OpenAlex 开放学术库" if source == OPENALEX_SOURCE_TYPE else "内部上传文献库"
+
+
+def _project_library_documents(db: Session, project_id: UUID) -> list[Document]:
+    return (
+        db.query(Document)
+        .filter(
+            Document.project_id == project_id,
+            Document.parse_status == "completed",
+            Document.deleted_at.is_(None),
+            Document.source_type != OPENALEX_SOURCE_TYPE,
+        )
+        .all()
+    )
+
+
+def _openalex_document_ids_for_claim(
+    db: Session,
+    run: Run,
+    project_id: UUID,
+    claim_text: str,
+    provider: LLMProvider,
+) -> set[UUID]:
+    try:
+        works = search_openalex_works(claim_text)
+    except Exception as exc:
+        _append_run_log(db, run, "verifying_claims", f"OpenAlex 检索失败：{str(exc)[:180]}", level="warning")
+        return set()
+
+    if not works:
+        _append_run_log(db, run, "verifying_claims", "OpenAlex 未返回可用摘要证据。", level="warning")
+        return set()
+
+    documents = ensure_openalex_documents(db, project_id, works, provider)
+    _append_run_log(db, run, "verifying_claims", f"OpenAlex 命中 {len(documents)} 条候选文献，已导入为可追溯证据片段。")
+    return {document.id for document in documents}

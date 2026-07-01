@@ -73,6 +73,7 @@ export type Evidence = {
   document_id: string;
   chunk_id: string;
   document_title: string | null;
+  source_priority: string;
   evidence_text: string;
   page_start: number;
   page_end: number;
@@ -87,6 +88,7 @@ export type Evidence = {
 };
 
 export type ReviewStatus = "unreviewed" | "confirmed" | "suppressed";
+export type EvidenceSource = "project_library" | "openalex";
 
 export type ClaimResult = {
   result_id: string;
@@ -127,4 +129,3 @@ export type RunResults = {
   };
   claims: ClaimResult[];
 };
-

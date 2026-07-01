@@ -103,3 +103,68 @@ select {
   color: #17211f;
 }
 
+.secondary-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.56;
+}
+
+.compact-button {
+  min-height: 32px;
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.highlight-mark {
+  display: inline;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  line-height: inherit;
+  padding: 0 2px 2px;
+  text-align: left;
+  text-decoration-line: underline;
+  text-decoration-thickness: 3px;
+  text-underline-offset: 6px;
+  transition: background 120ms ease, box-shadow 120ms ease;
+}
+
+.highlight-mark:hover,
+.highlight-selected {
+  background: rgba(8, 125, 116, 0.08);
+  box-shadow: 0 0 0 2px rgba(8, 125, 116, 0.16);
+}
+
+.highlight-score {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  vertical-align: baseline;
+}
+
+.highlight-good {
+  text-decoration-color: #62b99b;
+}
+
+.highlight-good .highlight-score {
+  color: #17663f;
+}
+
+.highlight-warn {
+  text-decoration-color: #d4b35f;
+}
+
+.highlight-warn .highlight-score {
+  color: #8a5407;
+}
+
+.highlight-bad {
+  text-decoration-color: #df9ca2;
+}
+
+.highlight-bad .highlight-score {
+  color: #9f2540;
+}
+

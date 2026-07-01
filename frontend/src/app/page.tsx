@@ -12,6 +12,7 @@ import {
   EyeOff,
   FileText,
   Gauge,
+  Globe2,
   Loader2,
   Play,
   RefreshCcw,
@@ -22,7 +23,7 @@ import {
   Workflow
 } from "lucide-react";
 import { api } from "@/lib/api";
-import type { ClaimResult, DocumentRecord, Project, Run, RunLog, RunResults, VersionInfo } from "@/lib/types";
+import type { ClaimResult, DocumentRecord, EvidenceSource, Project, Run, RunLog, RunResults, VersionInfo } from "@/lib/types";
 
 const sampleText =
   "张明等研究发现，睡眠干预组在两周后记忆保持率提高了 18%[1]。\n\n现有研究普遍认为短期正念训练能够显著降低所有研究生群体的压力水平[3]。";
@@ -84,6 +85,11 @@ const relationLabels: Record<string, string> = {
   IRRELEVANT: "不相关"
 };
 
+const evidenceSourceLabels: Record<EvidenceSource, string> = {
+  project_library: "内部上传文献库",
+  openalex: "OpenAlex 开放库"
+};
+
 export default function Home() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [activeProject, setActiveProject] = useState<Project | null>(null);
@@ -101,6 +107,7 @@ export default function Home() {
   const [verdictFilter, setVerdictFilter] = useState("all");
   const [riskFilter, setRiskFilter] = useState("all");
   const [reviewFilter, setReviewFilter] = useState("all");
+  const [evidenceSource, setEvidenceSource] = useState<EvidenceSource>("project_library");
 
   useEffect(() => {
     void refreshProjects();
@@ -262,9 +269,9 @@ export default function Home() {
         section_type: "related_work",
         citation_style: "numeric"
       });
-      const nextRun = await api.startVerification(inputText.id);
+      const nextRun = await api.startVerification(inputText.id, { evidence_source: evidenceSource });
       setRun(nextRun);
-      setMessage("核查任务已启动");
+      setMessage(`核查任务已启动，证据来源：${evidenceSourceLabels[evidenceSource]}`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "核查启动失败");
     } finally {
@@ -362,7 +369,7 @@ export default function Home() {
             <div className="mt-4 space-y-2">
               {documents.map((document) => (
                 <div key={document.id} className="rounded-lg border border-line bg-white p-3">
-                  <div className="flex items-start justify-between gap-2">
+                  <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <div className="flex items-center gap-2">
                         {document.citation_index ? <span className="shrink-0 rounded bg-[#eef8f6] px-2 py-0.5 text-xs font-semibold text-teal">[{document.citation_index}]</span> : null}
@@ -385,12 +392,12 @@ export default function Home() {
         </aside>
 
         <section className="space-y-4">
-          <Panel title="待核查文本" action={<ModeSelector />}>
+          <Panel title="待核查文本" action={<EvidenceSourceSelector value={evidenceSource} onChange={setEvidenceSource} />}>
             <div className="grid gap-3">
               <input className="field" value={textTitle} onChange={(event) => setTextTitle(event.target.value)} />
               <textarea className="min-h-[240px] resize-y rounded-lg border border-line bg-white px-4 py-3 text-sm leading-7 outline-none focus:border-teal" value={rawText} onChange={(event) => setRawText(event.target.value)} />
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="text-xs text-slate">{rawText.length} 字符 · 当前阶段只使用已上传 PDF 作为证据来源</div>
+                <div className="text-xs text-slate">{rawText.length} 字符 · 证据来源：{evidenceSourceLabels[evidenceSource]}</div>
                 <button className="primary-button min-w-[150px]" onClick={handleVerify} disabled={!activeProject || busy}>
                   {busy ? <Loader2 className="animate-spin" size={16} /> : <Play size={16} />}
                   启动核查
@@ -443,15 +450,15 @@ export default function Home() {
                       <td className="border-b border-line px-3 py-3 font-semibold text-ink">{labelVerdict(claim.verdict)}</td>
                       <td className="border-b border-line px-3 py-3">{claim.confidence.toFixed(1)}</td>
                       <td className="border-b border-line px-3 py-3">
-                        <span className={clsx("rounded-md px-2 py-1 text-xs font-semibold", riskClass(claim.risk_level))}>{riskLabels[claim.risk_level]}</span>
+                        <span className={clsx("inline-flex whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold", riskClass(claim.risk_level))}>{riskLabels[claim.risk_level]}</span>
                       </td>
-                      <td className="min-w-[160px] border-b border-line px-3 py-3">
+                      <td className="min-w-[148px] border-b border-line px-3 py-3">
                         <div className="mb-2 text-xs text-slate">{reviewLabels[claim.review_status]}</div>
                         <div className="flex flex-wrap gap-2">
-                          <button className="secondary-button px-2 py-1 text-xs" onClick={(event) => { event.stopPropagation(); void handleReview(claim, "confirmed"); }} disabled={busy || claim.review_status === "confirmed"}>
+                          <button className="secondary-button compact-button" onClick={(event) => { event.stopPropagation(); void handleReview(claim, "confirmed"); }} disabled={busy || claim.review_status === "confirmed"}>
                             <Check size={13} />确认
                           </button>
-                          <button className="secondary-button px-2 py-1 text-xs" onClick={(event) => { event.stopPropagation(); void handleReview(claim, claim.review_status === "suppressed" ? "unreviewed" : "suppressed"); }} disabled={busy}>
+                          <button className="secondary-button compact-button" onClick={(event) => { event.stopPropagation(); void handleReview(claim, claim.review_status === "suppressed" ? "unreviewed" : "suppressed"); }} disabled={busy}>
                             {claim.review_status === "suppressed" ? <Eye size={13} /> : <EyeOff size={13} />}
                             {claim.review_status === "suppressed" ? "恢复" : "屏蔽"}
                           </button>
@@ -530,13 +537,28 @@ function StatusPill({ icon, label, value }: { icon: React.ReactNode; label: stri
   );
 }
 
-function ModeSelector() {
+function EvidenceSourceSelector({ value, onChange }: { value: EvidenceSource; onChange: (value: EvidenceSource) => void }) {
+  const options: Array<{ value: EvidenceSource; label: string; icon: React.ReactNode }> = [
+    { value: "project_library", label: "内部库", icon: <Database size={14} /> },
+    { value: "openalex", label: "开放库", icon: <Globe2 size={14} /> }
+  ];
   return (
-    <select className="rounded-lg border border-line bg-white px-3 py-2 text-xs font-semibold text-ink outline-none focus:border-teal" defaultValue="strict_paper" aria-label="核查模式">
-      <option value="strict_paper">严格论文模式</option>
-      <option value="quick">快速预览模式</option>
-      <option value="citation">指定文献模式</option>
-    </select>
+    <div className="inline-grid grid-cols-2 rounded-lg border border-line bg-panel p-1" aria-label="证据来源模式">
+      {options.map((option) => (
+        <button
+          key={option.value}
+          type="button"
+          className={clsx(
+            "inline-flex h-8 items-center justify-center gap-1.5 rounded-md px-3 text-xs font-semibold transition",
+            value === option.value ? "bg-white text-teal shadow-sm" : "text-slate hover:text-ink"
+          )}
+          onClick={() => onChange(option.value)}
+        >
+          {option.icon}
+          {option.label}
+        </button>
+      ))}
+    </div>
   );
 }
 
@@ -556,7 +578,7 @@ function ParseStatus({ status }: { status: string }) {
   const ok = status === "completed";
   const failed = status === "failed";
   return (
-    <span className={clsx("inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-semibold", ok ? "bg-emerald-50 text-emerald-700" : failed ? "bg-red-50 text-danger" : "bg-amber-50 text-amber")}>
+    <span className={clsx("inline-flex shrink-0 items-center gap-1 whitespace-nowrap rounded-md px-2 py-1 text-xs font-semibold", ok ? "bg-emerald-50 text-emerald-700" : failed ? "bg-red-50 text-danger" : "bg-amber-50 text-amber")}>
       {ok ? <CheckCircle2 size={13} /> : failed ? <AlertTriangle size={13} /> : <Loader2 className="animate-spin" size={13} />}
       {parseStatusLabels[status] ?? status}
     </span>
@@ -636,7 +658,7 @@ function SummaryTile({ label, value }: { label: string; value: number }) {
 
 function HighlightedText({ text, claims, selectedClaimId, onSelectClaim }: { text: string; claims: ClaimResult[]; selectedClaimId: string | null; onSelectClaim: (claimId: string) => void }) {
   if (!claims.length) {
-    return <p className="whitespace-pre-wrap text-sm leading-7 text-ink">{text}</p>;
+    return <p className="whitespace-pre-wrap text-base leading-8 text-ink">{text}</p>;
   }
   const sorted = [...claims].sort((a, b) => a.char_start - b.char_start || a.char_end - b.char_end);
   const nodes: React.ReactNode[] = [];
@@ -648,16 +670,18 @@ function HighlightedText({ text, claims, selectedClaimId, onSelectClaim }: { tex
       <button
         key={claim.claim_id}
         type="button"
-        className={clsx("rounded px-1 py-0.5 text-left align-baseline transition", selectedClaimId === claim.claim_id ? "outline outline-2 outline-teal" : "", claim.risk_level === "low" ? "bg-emerald-100" : claim.risk_level === "medium" ? "bg-sky-100" : claim.risk_level === "high" ? "bg-amber-100" : "bg-red-100")}
+        className={clsx("highlight-mark", highlightClass(claim), selectedClaimId === claim.claim_id && "highlight-selected")}
         onClick={() => onSelectClaim(claim.claim_id)}
+        aria-label={`查看声称：${claim.atomic_claim}`}
       >
-        {text.slice(claim.char_start, claim.char_end)}
+        <span>{text.slice(claim.char_start, claim.char_end)}</span>
+        <span className="highlight-score">{Math.round(claim.confidence)} {highlightSymbol(claim)}</span>
       </button>
     );
     cursor = Math.max(cursor, claim.char_end);
   });
   if (cursor < text.length) nodes.push(<span key="tail">{text.slice(cursor)}</span>);
-  return <p className="whitespace-pre-wrap text-sm leading-7 text-ink">{nodes}</p>;
+  return <p className="whitespace-pre-wrap text-base leading-9 text-ink">{nodes}</p>;
 }
 
 function EvidenceInspector({ claim }: { claim: ClaimResult }) {
@@ -680,7 +704,7 @@ function EvidenceInspector({ claim }: { claim: ClaimResult }) {
             <FileText className="mt-0.5 text-teal" size={16} />
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-ink">{evidence.document_title || "未命名文献"}</div>
-              <div className="text-xs text-slate">第 {evidence.page_start}-{evidence.page_end} 页 · {labelRelation(evidence.relation)}</div>
+              <div className="text-xs text-slate">第 {evidence.page_start}-{evidence.page_end} 页 · {labelRelation(evidence.relation)} · {labelSourcePriority(evidence.source_priority)}</div>
             </div>
           </div>
           <p className="mt-3 line-clamp-6 text-xs leading-5 text-slate">{evidence.evidence_text}</p>
@@ -701,6 +725,19 @@ function riskClass(risk: ClaimResult["risk_level"]) {
   }[risk];
 }
 
+function highlightClass(claim: ClaimResult) {
+  if (claim.verdict === "SUPPORTED" && claim.risk_level === "low") return "highlight-good";
+  if (claim.verdict === "REFUTED" || claim.verdict === "CITATION_MISMATCH" || claim.risk_level === "critical") return "highlight-bad";
+  if (claim.verdict === "PARTIALLY_SUPPORTED" || claim.risk_level === "medium") return "highlight-warn";
+  return claim.risk_level === "high" ? "highlight-bad" : "highlight-warn";
+}
+
+function highlightSymbol(claim: ClaimResult) {
+  if (claim.verdict === "SUPPORTED" && claim.risk_level === "low") return "✓";
+  if (claim.verdict === "REFUTED" || claim.verdict === "CITATION_MISMATCH" || claim.risk_level === "critical") return "×";
+  return "?";
+}
+
 function formatVersion(version: VersionInfo | null) {
   if (!version) return "版本未知";
   const sha = version.build_sha ? ` · ${version.build_sha.slice(0, 7)}` : "";
@@ -718,4 +755,12 @@ function labelVerdict(verdict: string) {
 
 function labelRelation(relation: string | null) {
   return relationLabels[relation ?? ""] ?? relation ?? "未判定";
+}
+
+function labelSourcePriority(source: string) {
+  return {
+    cited_document: "引用文献",
+    project_library: "内部库",
+    openalex: "OpenAlex"
+  }[source] ?? source;
 }
